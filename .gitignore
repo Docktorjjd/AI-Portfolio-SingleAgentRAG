@@ -1,0 +1,49 @@
+# 🧠 Python
+__pycache__/
+*.py[cod]
+*.so
+
+# 🧪 Virtual environments
+.venv/
+env/
+venv/
+ENV/
+
+# 🧰 Jupyter + VS Code
+.ipynb_checkpoints/
+.vscode/
+*.code-workspace
+
+# 🧬 AI / ML Artifacts
+chroma_db/
+pinecone_index/
+*.pkl
+*.h5
+*.ckpt
+*.pt
+*.model
+
+# ⚙️ Logs + Outputs
+logs/
+*.log
+*.out
+*.tmp
+
+# 🧩 OS + Misc
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+
+# 🚀 Environment + Keys
+.env
+*.env
+*.key
+*.pem
+
+# 🧮 Cache + Pip
+__pypackages__/
+pip-wheel-metadata/
+*.egg-info/
+build/
+dist/
