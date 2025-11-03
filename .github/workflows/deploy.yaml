@@ -1,0 +1,108 @@
+name: CI • Validate & Deploy
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+
+env:
+  PYTHON_VERSION: "3.10"
+  NOTEBOOK_NAME: "single_agent_rag_clean.ipynb" # change if needed
+  HF_SPACE: "Docktorjjd/SingleAgentRAG"         # your Space name (owner/space)
+
+jobs:
+  validate-notebook:
+    name: 🧪 Validate notebook
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: 📦 Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install nbformat nbconvert ipykernel
+
+      - name: 🔎 Check notebook exists (skip if not)
+        id: nb_check
+        run: |
+          if [ ! -f "$NOTEBOOK_NAME" ]; then
+            echo "found=false" >> $GITHUB_OUTPUT
+            echo "⚠️ Notebook '$NOTEBOOK_NAME' not found. Skipping execution."
+          else
+            echo "found=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: ▶️ Execute notebook
+        if: steps.nb_check.outputs.found == 'true'
+        run: |
+          jupyter nbconvert --to notebook --execute --inplace "$NOTEBOOK_NAME"
+
+  prepare-docs:
+    name: 🗂️ Ensure docs folder
+    runs-on: ubuntu-latest
+    needs: [validate-notebook]
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 📁 Ensure docs/ exists
+        run: |
+          mkdir -p docs
+          # (Optional) Ensure placeholders exist so links never 404
+          [ -f docs/AI_Portfolio_Roadmap.pdf ] || echo "Roadmap PDF placeholder" > docs/README.txt
+
+      - name: ⬆️ Commit docs scaffolding (if changed)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs || true
+          git diff --cached --quiet || git commit -m "chore: ensure docs/ present via CI"
+          git push || true
+
+  deploy-huggingface:
+    name: 🚀 Deploy to Hugging Face Spaces
+    runs-on: ubuntu-latest
+    needs: [validate-notebook]   # wait for validation
+    if: github.ref == 'refs/heads/main'          # only on main
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🧰 Install CLI
+        run: |
+          python -m pip install --upgrade pip
+          pip install -U huggingface_hub
+
+      - name: 🔐 Login to HF
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          huggingface-cli login --token "$HF_TOKEN"
+
+      - name: 📤 Upload repo to Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          huggingface-cli upload ./ "${{ env.HF_SPACE }}" \
+            --repo-type=space \
+            --commit-message "CI: auto-deploy from GitHub main" \
+            --token "$HF_TOKEN"
+
+  # Optional: Streamlit Community Cloud trigger (enable after connecting repo in Streamlit Cloud)
+  # streamlit-ping:
+  #   name: 🌐 Ping Streamlit Cloud (optional)
+  #   runs-on: ubuntu-latest
+  #   needs: [validate-notebook]
+  #   if: github.ref == 'refs/heads/main'
+  #   steps:
+  #     - name: ⏱️ No-op step (Streamlit Cloud rebuilds on push automatically)
+  #       run: echo "If your repo is connected to Streamlit Community Cloud, it redeploys on push."
