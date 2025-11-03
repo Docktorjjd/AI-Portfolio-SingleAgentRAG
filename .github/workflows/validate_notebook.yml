@@ -1,0 +1,35 @@
+name: 🧠 Validate RAG Notebook
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  test-notebook:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: 📦 Install dependencies
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install nbformat nbconvert ipykernel
+
+      - name: 🧪 Validate Jupyter notebooks
+        run: |
+          source .venv/bin/activate
+          jupyter nbconvert --to notebook --execute --inplace single_agent_rag_clean.ipynb
+
+      - name: ✅ Notebook execution completed
+        run: echo "All notebooks executed successfully!"
